@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Appointments</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --primary-blue: #1E3A8A;
+            --secondary-gray: #4B5563;
+            --bg-light: #F9FAFB;
+            --text-dark: #1F2937;
+            --highlight-yellow: #FEF3C7;
+        }
+        body {
+            background-color: var(--bg-light);
+            color: var(--text-dark);
+        }
+        .bg-primary { background-color: var(--primary-blue); }
+        .text-primary { color: var(--primary-blue); }
+        .border-primary { border-color: var(--primary-blue); }
+        .bg-highlight { background-color: var(--highlight-yellow); }
+        .focus:ring-primary { --tw-ring-color: var(--primary-blue); }
+        .icon-button {
+            background: none;
+            color: var(--primary-blue);
+            font-size: 1.2rem;
+            padding: 0.25rem;
+            border-radius: 0.25rem;
+        }
+        .icon-button:hover:not(:disabled) {
+            opacity: 0.9;
+        }
+        .icon-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center p-4">
+    <div class="w-full max-w-4xl flex flex-col md:flex-row gap-6">
+        <!-- Left Side: Appointment Management -->
+        <div class="w-full md:w-1/2 bg-white rounded-lg shadow-md p-6">
+            <h1 class="text-2xl font-bold text-center mb-6 text-primary">Manage Appointments</h1>
+            
+            <!-- Appointment Form -->
+            <div class="mb-6">
+                <h2 class="text-lg font-semibold mb-2 text-primary">Add New Appointment</h2>
+                <div class="grid grid-cols-1 gap-4">
+                    <input id="patientName" type="text" placeholder="Patient Name" class="border border-primary rounded p-2 focus:outline-none focus:ring-2 focus:ring-primary">
+                    <div class="flex space-x-2">
+                        <input id="appointmentTime" type="datetime-local" class="border border-primary rounded p-2 focus:outline-none focus:ring-2 focus:ring-primary flex-grow">
+                        <button onclick="setCurrentTime()" class="bg-primary text-white rounded p-2 hover:opacity-90 transition">Now</button>
+                    </div>
+                    <button onclick="addAppointment()" class="bg-primary text-white rounded p-2 hover:opacity-90 transition">Add Appointment</button>
+                </div>
+            </div>
+
+            <!-- Queue Management -->
+            <div class="mb-6">
+                <h2 class="text-lg font-semibold mb-2 text-primary">Queue Management</h2>
+                <button onclick="callNextPatient()" class="bg-primary text-white rounded p-2 hover:opacity-90 transition">Call Next Patient</button>
+            </div>
+
+            <!-- Appointment List -->
+            <div>
+                <h2 class="text-lg font-semibold mb-2 text-primary">Appointments</h2>
+                <p class="text-sm text-secondary-gray mb-2">Use ↑/↓ arrow keys to move selected appointment up/down one position</p>
+                <ul id="appointmentList" class="space-y-2" tabindex="0"></ul>
+            </div>
+        </div>
+
+        <!-- Right Side: Current Patient View -->
+        <div class="w-full md:w-1/2 bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-lg font-semibold mb-2 text-primary">Current Patient</h2>
+            <div id="currentPatient" class="text-secondary-gray">
+                <p id="currentPatientDetails">No patient currently called</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize appointments and current patient from localStorage
+        let appointments = JSON.parse(localStorage.getItem('appointments')) || [];
+        let currentPatient = JSON.parse(localStorage.getItem('currentPatient')) || null;
+        let selectedIndex = -1;
+
+        // Set current date and time (June 05, 2025, 09:20 PM IST)
+        function setCurrentTime() {
+            const now = new Date('2025-06-05T21:20:00+05:30');
+            const formattedDateTime = now.toISOString().slice(0, 16);
+            document.getElementById('appointmentTime').value = formattedDateTime;
+        }
+
+        // Display appointments
+        function displayAppointments() {
+            const list = document.getElementById('appointmentList');
+            list.innerHTML = '';
+            appointments.forEach((appt, index) => {
+                const li = document.createElement('li');
+                li.className = `flex justify-between items-center p-2 border border-primary rounded ${index === selectedIndex ? 'bg-highlight' : ''}`;
+                li.innerHTML = `
+                    <span>${appt.name} - ${new Date(appt.time).toLocaleString()}</span>
+                    <div class="flex space-x-2">
+                        <button onclick="bumpUp(${index})" class="icon-button ${index === 0 ? 'opacity-50 cursor-not-allowed' : ''}" ${index === 0 ? 'disabled' : ''}>↑</button>
+                        <button onclick="bumpDown(${index})" class="icon-button ${index === appointments.length - 1 ? 'opacity-50 cursor-not-allowed' : ''}" ${index === appointments.length - 1 ? 'disabled' : ''}>↓</button>
+                        <button onclick="deleteAppointment(${index})" class="icon-button">🗑️</button>
+                    </div>
+                `;
+                li.addEventListener('click', () => selectAppointment(index));
+                list.appendChild(li);
+            });
+            if (selectedIndex >= appointments.length) selectedIndex = appointments.length - 1;
+            if (selectedIndex >= 0) list.focus();
+            displayCurrentPatient();
+        }
+
+        // Display current patient
+        function displayCurrentPatient() {
+            const currentPatientDiv = document.getElementById('currentPatientDetails');
+            if (currentPatient) {
+                currentPatientDiv.innerHTML = `
+                    <p><strong>Name:</strong> ${currentPatient.name}</p>
+                    <p><strong>Time:</strong> ${new Date(currentPatient.time).toLocaleString()}</p>
+                `;
+            } else {
+                currentPatientDiv.innerHTML = 'No patient currently called';
+            }
+        }
+
+        // Select appointment
+        function selectAppointment(index) {
+            selectedIndex = index;
+            displayAppointments();
+        }
+
+        // Add new appointment
+        function addAppointment() {
+            const name = document.getElementById('patientName').value.trim();
+            const time = document.getElementById('appointmentTime').value;
+            if (name && time) {
+                try {
+                    const appointmentTime = new Date(time);
+                    if (isNaN(appointmentTime.getTime())) {
+                        throw new Error('Invalid date');
+                    }
+                    appointments.push({ name, time: appointmentTime.toISOString() });
+                    appointments.sort((a, b) => new Date(a.time) - new Date(b.time));
+                    localStorage.setItem('appointments', JSON.stringify(appointments));
+                    selectedIndex = -1;
+                    displayAppointments();
+                    document.getElementById('patientName').value = '';
+                    document.getElementById('appointmentTime').value = '';
+                } catch (error) {
+                    console.error('Error adding appointment:', error);
+                    alert('Please enter a valid patient name and date/time');
+                }
+            } else {
+                alert('Please fill in all fields');
+            }
+        }
+
+        // Delete appointment
+        function deleteAppointment(index) {
+            appointments.splice(index, 1);
+            if (selectedIndex === index) selectedIndex = -1;
+            else if (selectedIndex > index) selectedIndex--;
+            localStorage.setItem('appointments', JSON.stringify(appointments));
+            displayAppointments();
+        }
+
+        // Bump up appointment (one position)
+        function bumpUp(index) {
+            if (index > 0) {
+                [appointments[index], appointments[index - 1]] = [appointments[index - 1], appointments[index]];
+                localStorage.setItem('appointments', JSON.stringify(appointments));
+                selectedIndex = index - 1;
+                displayAppointments();
+            }
+        }
+
+        // Bump down appointment (one position)
+        function bumpDown(index) {
+            if (index < appointments.length - 1) {
+                [appointments[index], appointments[index + 1]] = [appointments[index + 1], appointments[index]];
+                localStorage.setItem('appointments', JSON.stringify(appointments));
+                selectedIndex = index + 1;
+                displayAppointments();
+            }
+        }
+
+        // Call next patient
+        function callNextPatient() {
+            if (appointments.length > 0) {
+                const nextPatient = appointments.shift();
+                currentPatient = nextPatient;
+                alert(`Now serving: ${nextPatient.name} at ${new Date(nextPatient.time).toLocaleString()}`);
+                if (selectedIndex === 0) selectedIndex = -1;
+                else if (selectedIndex > 0) selectedIndex--;
+                localStorage.setItem('appointments', JSON.stringify(appointments));
+                localStorage.setItem('currentPatient', JSON.stringify(currentPatient));
+                displayAppointments();
+            } else {
+                alert('No patients in queue');
+            }
+        }
+
+        // Keyboard navigation
+        document.getElementById('appointmentList').addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowUp' && selectedIndex > 0) {
+                e.preventDefault();
+                bumpUp(selectedIndex);
+            } else if (e.key === 'ArrowDown' && selectedIndex >= 0 && selectedIndex < appointments.length - 1) {
+                e.preventDefault();
+                bumpDown(selectedIndex);
+            }
+        });
+
+        // Initial display
+        displayAppointments();
+    </script>
+</body>
+</html>
