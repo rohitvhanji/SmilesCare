@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> Dental Charting Page</title>
+    <style>
+        :root {
+            --primary-blue: #1E3A8A;
+            --bg-light: #F9FAFB;
+            --color-missing: #D9534F; /* Red for Missing/Extraction */
+            --color-decay: #F0AD4E;   /* Orange for Decay/Caries */
+            --color-filled: #5BC0DE;  /* Light Blue for Filled/Restoration */
+            --color-crown: #2C3E50;   /* Dark Gray for Crown */
+            --color-implant: #1E8449; /* Green for Implant */
+            --color-other: #9B59B6;   /* Purple for Other */
+        }
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: var(--bg-light);
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            color: var(--primary-blue);
+            margin-bottom: 5px;
+        }
+        /* --- Chart Styling --- */
+        .chart {
+            margin: 20px auto;
+            max-width: 1000px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .row {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            margin: 10px 0;
+            padding: 0 5px;
+            flex-wrap: wrap;
+        }
+        .upper-row {
+            border-bottom: 2px solid #ccc;
+            padding-bottom: 15px;
+        }
+        .lower-row {
+            padding-top: 15px;
+        }
+        .tooth {
+            cursor: pointer;
+            margin: 0 3px;
+            font-size: 24px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.3s, border-color 0.3s;
+            background-color: white;
+            flex-grow: 1; /* Ensures they share space evenly */
+            max-width: 50px; /* Max size for desktop view */
+        }
+        .tooth:hover {
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 5px rgba(30, 58, 138, 0.5);
+        }
+        .tooth-number {
+            font-size: 11px;
+            position: absolute;
+            bottom: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #fff;
+            border: 1px solid var(--primary-blue);
+            color: var(--primary-blue);
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+        }
+        
+        /* --- Sidebar & Diagnosis UI --- */
+        #diagnosisSidebar {
+            position: fixed;
+            top: 0;
+            right: -300px; /* Start off-screen */
+            width: 300px;
+            height: 100%;
+            background-color: white;
+            box-shadow: -4px 0 10px rgba(0,0,0,0.1);
+            padding: 20px;
+            box-sizing: border-box;
+            transition: right 0.3s;
+            text-align: left;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        #diagnosisSidebar.open {
+            right: 0;
+        }
+        .diagnosis-button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            background-color: #f5f5f5;
+            transition: background-color 0.2s, color 0.2s;
+            font-weight: bold;
+        }
+        .diagnosis-button:hover {
+            background-color: var(--primary-blue);
+            color: white;
+        }
+        .close-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--primary-blue);
+        }
+        
+        /* --- Observations Table --- */
+        #diagnosisSummary {
+            margin-top: 40px;
+            border-collapse: collapse;
+            width: 90%; 
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #diagnosisSummary th, #diagnosisSummary td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        #diagnosisSummary th {
+            background-color: var(--primary-blue);
+            color: white;
+            font-weight: bold;
+        }
+        #diagnosisSummary td {
+            background-color: white;
+        }
+
+        /* Color Legend */
+        .color-legend {
+            margin: 20px auto;
+            max-width: 800px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f0f8ff;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            font-size: 14px;
+        }
+        .legend-item {
+            margin: 5px 15px;
+            display: flex;
+            align-items: center;
+        }
+        .color-box {
+            width: 15px;
+            height: 15px;
+            margin-right: 5px;
+            border: 1px solid #333;
+        }
+        /* Dynamic color classes for legend and buttons */
+        .bg-missing { background-color: var(--color-missing); }
+        .bg-decay { background-color: var(--color-decay); }
+        .bg-filled { background-color: var(--color-filled); }
+        .bg-crown { background-color: var(--color-crown); }
+        .bg-implant { background-color: var(--color-implant); }
+        .bg-other { background-color: var(--color-other); }
+
+    </style>
+</head>
+<body>
+    <h1>Advanced Dental Charting</h1>
+    <p>Click on any tooth to record a **Diagnosis** or **Treatment** from the sidebar.</p>
+    
+    <div class="color-legend">
+        <div class="legend-item"><div class="color-box bg-missing"></div>Missing/Extracted</div>
+        <div class="legend-item"><div class="color-box bg-decay"></div>Decay/Caries</div>
+        <div class="legend-item"><div class="color-box bg-filled"></div>Filled/Restoration</div>
+        <div class="legend-item"><div class="color-box bg-crown"></div>Crown/Veneer</div>
+        <div class="legend-item"><div class="color-box bg-implant"></div>Implant/Bridge</div>
+        <div class="legend-item"><div class="color-box bg-other"></div>Root Canal/Other</div>
+    </div>
+
+    <div class="chart">
+        <div class="row upper-row">
+            <span class="tooth" data-name="Upper Right 3rd Molar" data-tooth="1" onclick="openSidebar(this, '1')"><span class="tooth-number">1</span>🦷</span>
+            <span class="tooth" data-name="Upper Right 2nd Molar" data-tooth="2" onclick="openSidebar(this, '2')"><span class="tooth-number">2</span>🦷</span>
+            <span class="tooth" data-name="Upper Right 1st Molar" data-tooth="3" onclick="openSidebar(this, '3')"><span class="tooth-number">3</span>🦷</span>
+            <span class="tooth" data-name="Upper Right 2nd Premolar" data-tooth="4" onclick="openSidebar(this, '4')"><span class="tooth-number">4</span>🦷</span>
+            <span class="tooth" data-name="Upper Right 1st Premolar" data-tooth="5" onclick="openSidebar(this, '5')"><span class="tooth-number">5</span>🦷</span>
+            <span class="tooth" data-name="Upper Right Canine" data-tooth="6" onclick="openSidebar(this, '6')"><span class="tooth-number">6</span>🦷</span>
+            <span class="tooth" data-name="Upper Right Lateral Incisor" data-tooth="7" onclick="openSidebar(this, '7')"><span class="tooth-number">7</span>🦷</span>
+            <span class="tooth" data-name="Upper Right Central Incisor" data-tooth="8" onclick="openSidebar(this, '8')"><span class="tooth-number">8</span>🦷</span>
+            <span class="tooth" data-name="Upper Left Central Incisor" data-tooth="9" onclick="openSidebar(this, '9')"><span class="tooth-number">9</span>🦷</span>
+            <span class="tooth" data-name="Upper Left Lateral Incisor" data-tooth="10" onclick="openSidebar(this, '10')"><span class="tooth-number">10</span>🦷</span>
+            <span class="tooth" data-name="Upper Left Canine" data-tooth="11" onclick="openSidebar(this, '11')"><span class="tooth-number">11</span>🦷</span>
+            <span class="tooth" data-name="Upper Left 1st Premolar" data-tooth="12" onclick="openSidebar(this, '12')"><span class="tooth-number">12</span>🦷</span>
+            <span class="tooth" data-name="Upper Left 2nd Premolar" data-tooth="13" onclick="openSidebar(this, '13')"><span class="tooth-number">13</span>🦷</span>
+            <span class="tooth" data-name="Upper Left 1st Molar" data-tooth="14" onclick="openSidebar(this, '14')"><span class="tooth-number">14</span>🦷</span>
+            <span class="tooth" data-name="Upper Left 2nd Molar" data-tooth="15" onclick="openSidebar(this, '15')"><span class="tooth-number">15</span>🦷</span>
+            <span class="tooth" data-name="Upper Left 3rd Molar" data-tooth="16" onclick="openSidebar(this, '16')"><span class="tooth-number">16</span>🦷</span>
+        </div>
+        
+        <div class="row lower-row">
+            <span class="tooth" data-name="Lower Left 3rd Molar" data-tooth="17" onclick="openSidebar(this, '17')"><span class="tooth-number">17</span>🦷</span>
+            <span class="tooth" data-name="Lower Left 2nd Molar" data-tooth="18" onclick="openSidebar(this, '18')"><span class="tooth-number">18</span>🦷</span>
+            <span class="tooth" data-name="Lower Left 1st Molar" data-tooth="19" onclick="openSidebar(this, '19')"><span class="tooth-number">19</span>🦷</span>
+            <span class="tooth" data-name="Lower Left 2nd Premolar" data-tooth="20" onclick="openSidebar(this, '20')"><span class="tooth-number">20</span>🦷</span>
+            <span class="tooth" data-name="Lower Left 1st Premolar" data-tooth="21" onclick="openSidebar(this, '21')"><span class="tooth-number">21</span>🦷</span>
+            <span class="tooth" data-name="Lower Left Canine" data-tooth="22" onclick="openSidebar(this, '22')"><span class="tooth-number">22</span>🦷</span>
+            <span class="tooth" data-name="Lower Left Lateral Incisor" data-tooth="23" onclick="openSidebar(this, '23')"><span class="tooth-number">23</span>🦷</span>
+            <span class="tooth" data-name="Lower Left Central Incisor" data-tooth="24" onclick="openSidebar(this, '24')"><span class="tooth-number">24</span>🦷</span>
+            <span class="tooth" data-name="Lower Right Central Incisor" data-tooth="25" onclick="openSidebar(this, '25')"><span class="tooth-number">25</span>🦷</span>
+            <span class="tooth" data-name="Lower Right Lateral Incisor" data-tooth="26" onclick="openSidebar(this, '26')"><span class="tooth-number">26</span>🦷</span>
+            <span class="tooth" data-name="Lower Right Canine" data-tooth="27" onclick="openSidebar(this, '27')"><span class="tooth-number">27</span>🦷</span>
+            <span class="tooth" data-name="Lower Right 1st Premolar" data-tooth="28" onclick="openSidebar(this, '28')"><span class="tooth-number">28</span>🦷</span>
+            <span class="tooth" data-name="Lower Right 2nd Premolar" data-tooth="29" onclick="openSidebar(this, '29')"><span class="tooth-number">29</span>🦷</span>
+            <span class="tooth" data-name="Lower Right 1st Molar" data-tooth="30" onclick="openSidebar(this, '30')"><span class="tooth-number">30</span>🦷</span>
+            <span class="tooth" data-name="Lower Right 2nd Molar" data-tooth="31" onclick="openSidebar(this, '31')"><span class="tooth-number">31</span>🦷</span>
+            <span class="tooth" data-name="Lower Right 3rd Molar" data-tooth="32" onclick="openSidebar(this, '32')"><span class="tooth-number">32</span>🦷</span>
+        </div>
+    </div>
+    
+    <div id="diagnosisSidebar">
+        <button class="close-button" onclick="closeSidebar()">✕</button>
+        <h2 id="sidebarTitle" style="color: var(--primary-blue); margin-top: 0;">Chart Tooth</h2>
+        <p>Select a diagnosis/treatment:</p>
+        
+        <div id="diagnosisOptions">
+            </div>
+
+        <button class="diagnosis-button" onclick="recordDiagnosis('Clear', 'white')" style="background-color: #EEE; color: #333; margin-top: 15px;">
+            Clear Diagnosis
+        </button>
+    </div>
+
+    <h2 style="color: var(--primary-blue); margin-top: 50px;">Diagnosis Summary</h2>
+    <table id="diagnosisSummary">
+        <tr>
+            <th>Tooth Number</th>
+            <th>Tooth Name</th>
+            <th>Diagnosis/Treatment</th>
+        </tr>
+    </table>
+    
+    <script>
+        // Data structure for all diagnoses and their corresponding colors
+        const DIAGNOSES = [
+            { name: "Missing / Extracted", color: "var(--color-missing)" },
+            { name: "Decay (Caries)", color: "var(--color-decay)" },
+            { name: "Amalgam Filling (Restoration)", color: "var(--color-filled)" },
+            { name: "Composite Filling (Restoration)", color: "var(--color-filled)" },
+            { name: "Crown / Cap", color: "var(--color-crown)" },
+            { name: "Veneer", color: "var(--color-crown)" },
+            { name: "Implant", color: "var(--color-implant)" },
+            { name: "Bridge Abutment", color: "var(--color-implant)" },
+            { name: "Root Canal Treatment", color: "var(--color-other)" },
+            { name: "Sealant", color: "var(--color-other)" },
+        ];
+
+        let currentSelectedToothElement = null;
+        let chartedDiagnoses = JSON.parse(localStorage.getItem('chartedDiagnoses')) || {};
+        
+        // --- Sidebar Functions ---
+
+        /**
+         * Opens the diagnosis sidebar for a specific tooth.
+         * @param {HTMLElement} element - The tooth element clicked.
+         * @param {string} toothNumber - The tooth number.
+         */
+        function openSidebar(element, toothNumber) {
+            currentSelectedToothElement = element;
+            const toothName = element.dataset.name;
+
+            document.getElementById('sidebarTitle').textContent = `Chart Tooth ${toothNumber}: ${toothName}`;
+            
+            // Generate diagnosis buttons
+            const optionsDiv = document.getElementById('diagnosisOptions');
+            optionsDiv.innerHTML = ''; 
+
+            DIAGNOSES.forEach(diag => {
+                const button = document.createElement('button');
+                button.className = 'diagnosis-button';
+                button.textContent = diag.name;
+                button.onclick = () => recordDiagnosis(diag.name, diag.color);
+                optionsDiv.appendChild(button);
+            });
+
+            document.getElementById('diagnosisSidebar').classList.add('open');
+        }
+
+        /**
+         * Closes the diagnosis sidebar.
+         */
+        function closeSidebar() {
+            document.getElementById('diagnosisSidebar').classList.remove('open');
+            currentSelectedToothElement = null;
+        }
+
+        // --- Charting Logic ---
+
+        /**
+         * Records the diagnosis, updates the tooth's appearance, and saves state.
+         * @param {string} diagnosis - The selected diagnosis string.
+         * @param {string} color - The color code to apply.
+         */
+        function recordDiagnosis(diagnosis, color) {
+            if (!currentSelectedToothElement) return;
+
+            const toothNumber = currentSelectedToothElement.dataset.tooth;
+            const toothName = currentSelectedToothElement.dataset.name;
+
+            // 1. Update the tooth element's appearance
+            currentSelectedToothElement.style.backgroundColor = color;
+            currentSelectedToothElement.title = diagnosis;
+            
+            // 2. Update the internal state (chartedDiagnoses)
+            if (diagnosis === 'Clear') {
+                delete chartedDiagnoses[toothNumber];
+            } else {
+                chartedDiagnoses[toothNumber] = {
+                    name: toothName,
+                    diagnosis: diagnosis,
+                    color: color
+                };
+            }
+
+            // 3. Save to localStorage and update summary table
+            localStorage.setItem('chartedDiagnoses', JSON.stringify(chartedDiagnoses));
+            updateDiagnosisSummary();
+            closeSidebar();
+        }
+
+        /**
+         * Renders the diagnosis summary table.
+         */
+        function updateDiagnosisSummary() {
+            const table = document.getElementById("diagnosisSummary");
+            // Clear all rows except the header
+            table.innerHTML = '<tr><th>Tooth Number</th><th>Tooth Name</th><th>Diagnosis/Treatment</th></tr>';
+
+            const sortedKeys = Object.keys(chartedDiagnoses).sort((a, b) => parseInt(a) - parseInt(b));
+
+            if (sortedKeys.length > 0) {
+                sortedKeys.forEach(toothNumber => {
+                    const data = chartedDiagnoses[toothNumber];
+                    const row = table.insertRow();
+                    
+                    // Style the Diagnosis/Treatment cell based on the recorded color
+                    const diagnosisCell = row.insertCell(2);
+                    diagnosisCell.textContent = data.diagnosis;
+                    diagnosisCell.style.backgroundColor = data.color;
+                    
+                    // Set other cells
+                    row.insertCell(0).textContent = toothNumber;
+                    row.insertCell(1).textContent = data.name;
+                });
+            } else {
+                 // Display a placeholder row if no diagnoses exist
+                const row = table.insertRow();
+                const cell = row.insertCell(0);
+                cell.colSpan = 3;
+                cell.textContent = "No diagnoses recorded yet.";
+                cell.style.textAlign = "center";
+            }
+        }
+
+        /**
+         * Initializes the chart on page load by applying saved diagnoses.
+         */
+        function initializeChart() {
+            // Re-apply diagnoses from local storage to the chart
+            Object.keys(chartedDiagnoses).forEach(toothNumber => {
+                const data = chartedDiagnoses[toothNumber];
+                const toothElement = document.querySelector(`.tooth[data-tooth='${toothNumber}']`);
+                if (toothElement) {
+                    toothElement.style.backgroundColor = data.color;
+                    toothElement.title = data.diagnosis;
+                }
+            });
+
+            updateDiagnosisSummary();
+        }
+
+        // Initial setup
+        document.addEventListener('DOMContentLoaded', initializeChart);
+    </script>
+</body>
+</html>
